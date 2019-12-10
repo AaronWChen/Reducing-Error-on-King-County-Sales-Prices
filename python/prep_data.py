@@ -13,7 +13,8 @@ def create_train_test_df(ran_state=50):
 
   X_train, X_test, y_train, y_test = train_test_split(raw_data.drop('price', axis=1), 
                                                     raw_data['price'],
-                                                   random_state=ran_state)
+                                                   random_state=ran_state,
+                                                   stratify=raw_data['zipcode'])
   return X_train, X_test, y_train, y_test
 
 
@@ -118,14 +119,22 @@ def generate_hybrid_data(distance_df):
 
 def fit_transform_standard_scale(hybridized):
   ss = StandardScaler()
-  ss.fit(hybridized)
-  scaled = ss.transform(hybridized)
-  return ss, scaled
+  to_ss = hybridized.drop('zipcode', axis=1)
+  ss.fit(to_ss)
+  scaled = ss.transform(to_ss)
+  scaled = pd.DataFrame(scaled, columns = to_ss.columns, index= to_ss.index)
+  combined = pd.concat([scaled, hybridized['zipcode'].reindex(scaled.index)], 
+                        axis=1)
+  return ss, combined
 
 
 def transform_standard_scale(ss, X_test):
-  X_test_sc = ss.transform(X_test)
-  return X_test_sc
+  to_ss = X_test.drop('zipcode', axis=1)
+  X_test_sc = ss.transform(to_ss)
+  X_test_sc = pd.DataFrame(X_test_sc, columns= to_ss.columns, index=to_ss.index)
+  test_combined = pd.concat([X_test_sc, X_test['zipcode'].reindex(X_test_sc.index)],
+                            axis=1)
+  return test_combined
 
 
 def fit_transform_one_hot_encode_zipcodes(scaled):
