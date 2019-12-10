@@ -1,20 +1,20 @@
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import OneHotEncoder
-import statsmodels.api as sm
 from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 import sklearn.metrics as metrics
-import geopy
+from geopy import distance
+import joblib
 
 
-def create_train_test_df(ran_state):
-  raw_data = pd.read_csv("kc_house_data.csv")
+def create_train_test_df(ran_state=50):
+  raw_data = pd.read_csv("../raw_data/kc_house_data.csv")
 
   X_train, X_test, y_train, y_test = train_test_split(raw_data.drop('price', axis=1), 
                                                     raw_data['price'],
-                                                   random_state=ran_state)
+                                                   random_state=ran_state,
+                                                   stratify=raw_data['zipcode'])
   return X_train, X_test, y_train, y_test
 
 
@@ -119,31 +119,90 @@ def generate_hybrid_data(distance_df):
 
 def fit_transform_standard_scale(hybridized):
   ss = StandardScaler()
-  ss.fit(hybridized)
-  scaled = ss.transform(hybridized)
-  return ss, scaled
+  to_ss = hybridized.drop('zipcode', axis=1)
+  ss.fit(to_ss)
+  scaled = ss.transform(to_ss)
+  scaled = pd.DataFrame(scaled, columns = to_ss.columns, index= to_ss.index)
+  combined = pd.concat([scaled, hybridized['zipcode'].reindex(scaled.index)], 
+                        axis=1)
+  return ss, combined
 
 
 def transform_standard_scale(ss, X_test):
-  X_test_sc = ss.transform(X_test)
-  return X_test_sc
+  to_ss = X_test.drop('zipcode', axis=1)
+  X_test_sc = ss.transform(to_ss)
+  X_test_sc = pd.DataFrame(X_test_sc, columns= to_ss.columns, index=to_ss.index)
+  test_combined = pd.concat([X_test_sc, X_test['zipcode'].reindex(X_test_sc.index)],
+                            axis=1)
+  return test_combined
 
 
-def one_hot_encode_zipcodes(scaled):
+def fit_transform_one_hot_encode_zipcodes(scaled):
   ohe = OneHotEncoder(drop='first', categories='auto')
-  price_zip_trans = ohe.fit_transform(scaled['zipcode'].values.reshape(-1,1))
+  to_ohe = scaled['zipcode']
+  price_zip_trans = ohe.fit_transform(to_ohe.values.reshape(-1,1))
   zip_sparse = pd.DataFrame(price_zip_trans.todense(), columns=ohe.get_feature_names())
   scaled.drop(['zipcode'], axis=1, inplace=True)
   ohe_df = zip_sparse.join(scaled, how='inner')
-  return ohe_df
+  return ohe, ohe_df
 
 
-def log_target(y):
-  # Crate column with natural log of price to preserve linearity assumption
-  y_log = np.log(y)
-  return y_log
+def transform_ohe(ohe, scaled):
+  to_ohe = scaled['zipcode']
+  price_zip_trans = ohe.transform(to_ohe.values.reshape(-1,1))
+  zip_sparse = pd.DataFrame(price_zip_trans.todense(), columns=ohe.get_feature_names())
+  scaled.drop(['zipcode'], axis=1, inplace=True)
+  ohe_trans = zip_sparse.join(scaled, how='inner')
+  return ohe_trans
 
-lr = LinearRegression()
 
+def make_joblibs(rand_state=50):
+  X_train, X_test, y_train, y_test = create_train_test_df(rand_state)
 
+  with open(f"joblib/test_subset_rand_state_{rand_state}.joblib", 
+            "wb") as fo:
+    joblib.dump(X_test, fo, compress=True)
 
+  with open(f"joblib/test_subset_targets_rand_state_{rand_state}.joblib", 
+            "wb") as fo:
+    joblib.dump(y_test, fo, compress=True)
+
+  clean = clean_df(X_train)
+  dist = distance_calc(clean)
+  hybrid = generate_hybrid_data(dist)
+  ss, scaled = fit_transform_standard_scale(hybrid)
+  ohe, one_hot = fit_transform_one_hot_encode_zipcodes(scaled)
+  log_train_prices = np.log(y_train)
+
+  with open(f"joblib/standard_scaler_rand_state_{rand_state}.joblib", 
+            "wb") as fo:
+    joblib.dump(ss, fo, compress=True)
+
+  with open(f"joblib/ohe_rand_state_{rand_state}.joblib", 
+            "wb") as fo:
+    joblib.dump(ohe, fo, compress=True)
+
+  with open(f"joblib/prepped_training_set_rand_state_{rand_state}.joblib", 
+            "wb") as fo:
+    joblib.dump(one_hot, fo, compress=True)
+
+  with open(f"joblib/log_train_prices_rand_state_{rand_state}.joblib",
+            "wb") as fo:
+    joblib.dump(log_train_prices, fo, compress=True)
+
+  clean_test = clean_df(X_test)
+  dist_test = distance_calc(clean_test)
+  hybrid_test = generate_hybrid_data(dist_test)
+  scaled_test = transform_standard_scale(ss, hybrid_test)
+  one_hot_test = transform_ohe(ohe, scaled_test)
+  log_test_prices = np.log(y_test)
+
+  with open(f"joblib/prepped_test_set_rand_state_{rand_state}.joblib", 
+            "wb") as fo:
+    joblib.dump(one_hot_test, fo, compress=True)
+
+  with open(f"joblib/log_test_prices_rand_state_{rand_state}.joblib",
+            "wb") as fo:
+    joblib.dump(log_test_prices, fo, compress=True)
+
+make_joblibs()
