@@ -141,18 +141,22 @@ def fit_transform_one_hot_encode_zipcodes(scaled):
   ohe = OneHotEncoder(drop='first', categories='auto')
   to_ohe = scaled['zipcode']
   price_zip_trans = ohe.fit_transform(to_ohe.values.reshape(-1,1))
-  zip_sparse = pd.DataFrame(price_zip_trans.todense(), columns=ohe.get_feature_names())
+  zip_sparse = pd.DataFrame(price_zip_trans.todense(), 
+                            columns=ohe.get_feature_names(),
+                            index=scaled.index)
   scaled.drop(['zipcode'], axis=1, inplace=True)
-  ohe_df = zip_sparse.join(scaled, how='inner')
+  ohe_df = scaled.join(zip_sparse, how='inner')
   return ohe, ohe_df
 
 
 def transform_ohe(ohe, scaled):
   to_ohe = scaled['zipcode']
   price_zip_trans = ohe.transform(to_ohe.values.reshape(-1,1))
-  zip_sparse = pd.DataFrame(price_zip_trans.todense(), columns=ohe.get_feature_names())
+  zip_sparse = pd.DataFrame(price_zip_trans.todense(), 
+                            columns=ohe.get_feature_names(),
+                            index=scaled.index)
   scaled.drop(['zipcode'], axis=1, inplace=True)
-  ohe_trans = zip_sparse.join(scaled, how='inner')
+  ohe_trans = scaled.join(zip_sparse, how='inner')
   return ohe_trans
 
 
