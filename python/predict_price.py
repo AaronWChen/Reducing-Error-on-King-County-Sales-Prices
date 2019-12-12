@@ -1,3 +1,8 @@
+# Author: Aaron Washington Chen
+# GitHub: https://github.com/AaronWChen
+# This Python script is used to calculate regression metrics from a picked
+# file containing King County Real Estate Data
+
 import pandas as pd
 import numpy as np
 from sklearn.linear_model import LinearRegression
@@ -8,6 +13,9 @@ import math
 
 
 def load_data(rand_state=50):
+# This function opens previously pickled/stored training and test data sets from
+# King County Sales Data and stores the dataframes in variables
+
   train_data = f"joblib/prepped_training_set_rand_state_{rand_state}.joblib"
   with open(train_data, "rb") as fo:
     trained_data = joblib.load(train_data)
@@ -32,6 +40,12 @@ def load_data(rand_state=50):
 
 
 def calc_score_lr_rsme():
+# This function uses linear regression on the training set loaded from load_data 
+# function and performs regression on the test data set also loaded from 
+# load_data above.
+
+# It returns the linear regression score and root mean square error
+
   lr = LinearRegression()
   
   trained_data, log_trained_prices, test_data, log_test_prices = load_data()
@@ -48,6 +62,11 @@ def calc_score_lr_rsme():
 
 
 def calc_score_lscv_rsme():
+# This function uses LassoCV on the training set loaded from load_data function 
+# and performs regression on the test data set also loaded from load_data above.
+
+# It returns the LassoCV score, root mean square error, and alpha coefficient
+
   lscv = LassoCV(max_iter=150000)
 
   trained_data, log_trained_prices, test_data, log_test_prices = load_data()
@@ -65,6 +84,9 @@ def calc_score_lscv_rsme():
 
 
 def display_results():
+# This function calls the calculation functions and returns a dictionary with 
+# both scores, RMSE, and LassoCV alpha coefficient
+
   lr_score, lr_rmse = calc_score_lr_rsme()
   lscv_score, lscv_rmse, lscv_a = calc_score_lscv_rsme()
 
