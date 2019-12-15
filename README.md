@@ -5,9 +5,6 @@
 #### Aaron Washington Chen [GitHub](https://github.com/AaronWChen)
 #### Dirk Van Curan [GitHub](https://github.com/dirkstrong1)
 
-### GitHub Profile [Here
-
-
 ## Executive Summary
 
 This project aimed to make a price predictor based on real estate sales data in King County, WA from 2014-2015.
